@@ -15,8 +15,22 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Imports:
     cmdstanr,
-    R.utils
-    sf
+    cowplot,
+    dplyr,
+    geodist,
+    ggplot2,
+    glue,
+    LaplacesDemon,
+    matrixStats,
+    parallel,
+    posterior,
+    rnaturalearth,
+    rstan,
+    R.utils,
+    sf,
+    stringi,
+    tictoc
 Depends:
     data.table,
-    R (>= 3.6.0)
+    R (>= 3.6.0),
+    tibble
