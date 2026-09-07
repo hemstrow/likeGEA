@@ -1,0 +1,22 @@
+Package: likeGEA
+Title: Bayesian Genotype-Environment Association Analyses with Likelihoods.
+Version: 0.0.0.9000
+Authors@R: 
+    c(person("William", "Hemstrom", email = "hemstrow@gmail.com", role = c("aut", "cre"),
+    person("Nikunj", "Goel", email = "nikunj410@gmail.com", role = c("aut", "ctb")),
+    person("Prashant", "Ghimire", email = "pghimir1@kent.edu", role = c("aut", "ctb")))
+Description: A user-friendly interface for conducting Bayesian 
+    Genotype-Environment Association (GEA) tests with genotype-likelihood or 
+    pool-seq data, based on Goel et al. (2026)'s approaches incorporating
+    migration rate estimation in spatially structured populations.
+License: GPL (>= 3)
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Imports:
+    cmdstanr,
+    R.utils
+    sf
+Depends:
+    data.table,
+    R (>= 3.6.0)
