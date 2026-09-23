@@ -29,3 +29,7 @@
   return(path)
 }
 
+.console_hline <- function(char = "="){
+  return(paste0(rep(char, getOption("width")), collapse = ""))
+}
+
