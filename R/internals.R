@@ -78,6 +78,7 @@ phred_to_loglik <- function(phred_mat) {
   v[na_mask] <- "NA,NA,NA"
 
   triples <- stringi::stri_split_fixed(v, ",", simplify = TRUE)
+  triples[triples == "NA"] <- NA
   storage.mode(triples) <- "double"
 
   log_raw <- -0.1 * triples * log(10)

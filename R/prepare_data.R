@@ -83,13 +83,112 @@ beagle2pl <- function(file, lines = NULL, ind_order = NULL, ind_names = NULL){
   return(dfinal)
 }
 
+#' Chunk a beagle file into partitions for processing.
+#'
+#' Creates n chunks of a beagle file, where sequential lines are sent to
+#' different files round-robin style. Note that this is much faster on Linux
+#' than on Windows, since it avoids reading anything into memory using unix
+#' commands.
+#'
+#' @param beagle_file path to \code{.beagle} or \code{.beagle.gz} file.
+#' @param loci_per_chunk numeric, default 10000. Number of loci to distribute to each
+#'   chunk.
+#' @param max_read numeric, default 50000. Number of lines to read for splitting
+#'   at once. Ignored on Linux.
+#'
+#' @return A vector of filenames for the chunks.
+#'
+#' @author William Hemstrom
+get_chunks <- function(beagle_file,
+                       loci_per_chunk = 10000,
+                       max_read = 50000){
 
-prepare_pl_batches <- function(file,
-                               outdir = "./data",
-                               nsnps = 10000,
-                               target_order = NULL,
-                               individual_IDs = NULL,
-                               ind_names = NULL){
+
+  sys <- Sys.info()["sysname"]
+
+  # get number of lines
+  if(tools::file_ext(beagle_file) == "gz"){
+    if(sys == "Linux"){
+      nsnps <- system(paste0("zcat ", beagle_file, " | wc -l"), intern = TRUE)
+      nsnps <- as.numeric(nsnps) - 1
+    }
+    else {
+      nsnps <- fread(beagle_file, select = 1)
+      nsnps <- nrow(nsnps)
+    }
+  } else {
+    nsnps <- bread::bnrow(beagle_file)
+    nsnps <- nsnps - 1
+  }
+
+  if(nsnps <= loci_per_chunk){
+    cat("File has less loci than requested per-chunk already. Nothing to do.\n")
+    return(beagle_file)
+  }
+
+  #===========split==========
+
+  nfiles <- ceiling(nsnps/loci_per_chunk)
+
+  cat("Splitting into", nfiles, "files with approx.", nsnps/nfiles, "snps per file.\n")
+
+  # Linux -- use cmd
+  if(sys == "Linux"){
+    if(tools::file_ext(beagle_file) == "gz"){
+      cmd <- shQuote(paste0("zcat ", beagle_file,
+                            " | tail -n +2 | split -n r/", nfiles,
+                            " -d --additional-suffix=.beagle.gz --filter='{ zcat ",
+                            beagle_file, " | head -n 1; cat; } | gzip > $FILE' - chunk_"))
+    } else {
+      cmd <- shQuote(paste0("tail -n +2 ", beagle_file,
+                            " | split -n r/", nfiles,
+                            " -d --additional-suffix=.beagle --filter='{ head -n 1 ",
+                            beagle_file, " ; cat; } > $FILE' - chunk_"))
+    }
+
+    system(cmd)
+
+    outfiles <- list.files("", "chunk_[0-9]+\\.beag.+", full.names = TRUE)
+    return(outfiles)
+  }
+
+  # windows is sucky, read in chunks and re-write since we don't have access to split.
+  # NOTE if Nikunj confirms that there isn't a downside to doing this in sequential chunks,
+  # then we can unzip, then use bread to split very quickly and then rezip.
+  else if(sys == "Windows"){
+    fnames <- paste0("chunk_", 1:nfiles, ".beagle.gz")
+
+    read_parts <- split(1:nsnps, sort(rep(1:(nsnps/max_read), length.out = nsnps)))
+    read_parts <- lapply(read_parts, function(x){
+      p <- c(min(x), max(x))
+      p <- c(p[1], p[2] - p[1])
+      return(p)
+    })
+    for(i in 1:length(read_parts)){
+      cat("Reading part:", i)
+      tbeag <- fread(beagle_file, skip = read_parts[[i]][1] - 1,
+                     nrows = read_parts[[i]][2])
+
+      cparts <- split(tbeag, rep(1:nfiles, length.out = nrow(tbeag)))
+      names(cparts) <- fnames
+
+      lapply(1:length(cparts), function(x){
+
+        fwrite(cparts[[x]], names(cparts)[x],
+               append = ifelse(file.exists(names(cparts)[x]), TRUE, FALSE),
+               sep = "\t")
+      })
+    }
+    return(fnames)
+  }
+}
+
+resort_phred <- function(file,
+                         outdir = "./data",
+                         nsnps = 10000,
+                         target_order = NULL,
+                         individual_IDs = NULL,
+                         ind_names = NULL){
 
   if(!is.null(target_order)){
     if(is.character(target_order)){
