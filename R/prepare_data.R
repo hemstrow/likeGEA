@@ -183,33 +183,62 @@ get_chunks <- function(beagle_file,
   }
 }
 
-resort_phred <- function(file,
-                         outdir = "./data",
-                         nsnps = 10000,
-                         target_order = NULL,
-                         individual_IDs = NULL,
-                         ind_names = NULL){
+#' Format metadata for analysis.
+#' @author William Hemstrom
+prepare_metadata <- function(sample_meta,
+                             env_mean_method = "unweighted"){
 
-  if(!is.null(target_order)){
-    if(is.character(target_order)){
-      if(!is.null(individual_IDs)){
-        stop("Individual_IDs must be provided to re-sort based on IDs.\n")
-      }
-      if(any(!target_order %in% individual_IDs)){
-        stop("All target samples must be present in 'individual_IDs' to re-sort based on IDs.\n")
+  patch <- ind_id <- lat <- lon <- ..targets <- NULL
+
+  # patch info per sample
+  dt <- as.data.table(sample_meta)
+  patch_info <- dt[,.(patch, ind_id)]
+
+  # table of patches with x/y, sorted correctly
+  # Coordinates
+  patch_xy <- data.table(patch = unique(sample_meta$patch),
+                         lat = 0,
+                         lon = 0)
+  for(i in 1:nrow(patch_xy)){
+    tm <- sf::st_centroid(sf::st_union(sample_meta[sample_meta$patch == patch_xy$patch[i],]))
+    tm <- sf::st_coordinates(tm)
+    patch_xy[i,lat := tm[1,2]]
+    patch_xy[i,lon := tm[1,1]]
+  }
+
+  # mean envs per patch
+  targets <- colnames(dt)
+  targets <- targets[targets %notin% c("patch", "ind_id", "geometry")]
+  if(env_mean_method == "unweighted"){
+    envs <- dt[,lapply(.SD, mean), by = patch, .SDcols = targets]
+    envs <- envs[,..targets]
+  } else if(env_mean_method == "weighted"){ # for weighted (idw); relies on gstat
+    envs <- copy(patch_xy)[,1]
+    for(i in targets) envs[[i]] <- 0
+
+    # loop through and get dist to centroid for each point
+    for(i in 1:nrow(patch_xy)){
+      this_sf <- sample_meta[sample_meta$patch == patch_xy$patch[i],]
+      this_center <- sf::st_as_sf(patch_xy[i,], coords = c("lon", "lat"), crs = sf::st_crs(sample_meta))
+
+      for(j in 1:length(targets)){
+        idw_result <- gstat::idw(
+          formula = as.formula(paste0(targets[j], " ~ 1")),
+          locations = this_sf,
+          newdata = this_center,
+          idp = 2)[[1]]
+
+        set(envs, i = i, j = targets[[j]], value = idw_result)
       }
     }
   }
 
-  realized_order <- readRDS("data/0_ind_IDs.RDS")$ind_id
-  selected_snps <- readLines("data/selected_snps.txt")
-  selected_snps <- as.numeric(selected_snps)
-  if(!all(selected_snps[1]:selected_snps[length(selected_snps)] == selected_snps)){
-    stop("selected_snps.txt must give snps as a continuous block for read efficiency.\n")
-  }
-
-  resort <- match(target_order, realized_order)
-  tpl <- format_pl("data/genotypes.beagle.gz", selected_snps, resort, target_order)
-  saveRDS(tpl, "data/1_phred_score.RDS")
-  rm(tpl)
+  # return
+  browser()
+  ret <- list(patch_info = patch_info[,.(patch, ind_id)],
+              patches_xy = patch_xy,
+              env = env)
+  return(lapply(ret, as.data.frame))
 }
+
+

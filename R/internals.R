@@ -495,3 +495,8 @@ toc_hours <- function(tic, toc, msg) {
     paste0(label, signif(secs / 3600, 3), " hr elapsed")
   }
 }
+
+
+.source_model <- function(model_name){
+  system.file("stan", model_name, package = "likeGEA")
+}

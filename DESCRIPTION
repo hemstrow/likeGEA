@@ -31,7 +31,10 @@ Imports:
     sf,
     stringi,
     tictoc
+Suggests:
+    gstat
+Additional_repositories: https://stan-dev.r-universe.dev/
 Depends:
     data.table,
-    R (>= 3.6.0),
-    tibble
+    R (>= 3.6.0)
+LazyData: true

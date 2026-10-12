@@ -27,14 +27,9 @@ The current version of this readme is for the developers, describing the overall
 
 ## Step 1: Data prep.
 
-This package is fundamentally set-up to run on *chunks* of a larger beagle file but can be run on an entire file. Generally, the first thing a user will run is the `get_chunks()` function, which writes files specifying continous blocks of snps on which the code will be run. These files are stored in the "selected_snps" sub-directory of the core project dir and are named by chunk like:
+This package is fundamentally set-up to run on *chunks* of a larger beagle file but can be run on an entire file. Generally, the first thing a user will run is the `get_chunks()` function, which writes partitioned beagle files named `chunk_1.beagle.gz` etc.
 
-* PROJ/selected_snps/selected_snps_1.tsv
-* PROJ/selected_snps/selected_snps_2.tsv
-* ...
-* PROJ/selected_snps/selected_snps_n.tsv
-
-These, plus the input beagle(.gz) file are all that is needed from the genotype perspective to run the whole pipeline. The function `beagle2pl()` can be called by the user, but is internally called by the pipeline to generate the pl formatted data.
+These are all that is needed from the genotype perspective to run the whole pipeline. The function `beagle2pl()` can be called by the user, but is internally called by the pipeline to generate the pl formatted data.
 
 The pipeline also requires three metadata objects, which the user must prepare before running:
 
