@@ -1,52 +1,110 @@
+#' Likelihood-based genome-environment association test with migration pipeline.
+#'
+#' Runs the core likelihood-based GEA-with-migration pipeline, producing
+#' output files and plots in the working directory (and returned as an object).
+#' For large data (e.g. many SNPs), consider running this on small \code{Phred}
+#' batches and then combining.
+#'
+#' @param Phred Phred-scaled genotype liklelihoods, as generated from a
+#'   \code{.beagle} or \code{.beagle.gz} file by \code{\link{beagle2pl}}. See
+#'   \code{\link{example_gl}}\code{$likelihoods} for an example.
+#'
+#' @author William Hemstrom, Nikunj Goel
+#'
+#' @export
+#' @references Insert Goel et. al. ref here.
 likeGEA <- function(Phred, patch_info, patches_xy, env,
-                    N_sim = 100,
+                    N_sim_mig = 100,
                     migration_loci = 1000,
+                    k_sd = 4,
+                    p0 = 20,
                     seed = 42,
                     verbose = TRUE,
                     migration_model = "migration_fast",
                     max_attempts_mig = 10,
                     target_div_pct_mig = 1.0,
                     target_rhat_pct_mig = 1.0,
+                    chains_mig = 4,
                     iter_sampling_mig = 500,
                     iter_warmup_mig = 250,
                     max_treedepth_mig = 12,
                     refresh_mig = 200,
                     mig_plot_threshold = 0.4,
                     mig_plot_topn = 2,
-                    mig_plot_binsize = 1){
+                    mig_plot_binsize = 1,
+                    chains_gea = 2,
+                    refresh_gea = 200,
+                    iter_warmup_gea = 250,
+                    iter_sampling_gea = 500,
+                    plotting_CI = 0.95){
 
   #=====================1_prepare_data==============
   mig_data <- prepare_mig_data(Phred = Phred,
                              individuals = patch_info,
                              coordinates = patches_xy, env_data = env,
                              migration_loci = migration_loci,
-                             N_sim = N_sim,
+                             N_sim = N_sim_mig,
                              seed = seed,
                              verbose = verbose)
 
   #=====================2_estimate_migration========
-  Migration <- estimate_migration(data = mig_data,
+  Migration <- estimate_migration(data = mig_data$migration_data,
                                   model = migration_model,
                                   max_attempts = max_attempts_mig,
                                   target_div_pct = target_div_pct_mig,
                                   target_rhat_pct = target_rhat_pct_mig,
+                                  chains = chains_mig,
                                   iter_sampling = iter_sampling_mig,
                                   iter_warmup = iter_warmup_mig,
                                   max_treedepth = max_treedepth_mig,
                                   refresh = refresh_mig,
                                   par = parallel::detectCores() - 2)
+
   #=====================3_plot_migration========
   mig_plot <- plot_migration(M = Migration,
-                             data = mig_data,
+                             data = mig_data$migration_data,
                              coordinates = patches_xy,
                              threshold_value = mig_plot_threshold,
                              topn = mig_plot_topn,
                              bin_size = mig_plot_binsize)
 
   #=====================4_run_stan_model========
+  GEA_res <- run_stan_GEA_model(stan_data = mig_data$stan_data,
+                                migration_results = Migration,
+                                k_sd = k_sd,
+                                p0 = p0,
+                                chains = chains_gea,
+                                refresh = refresh_gea,
+                                iter_warmup = iter_warmup_gea,
+                                iter_sampling = iter_sampling_gea,
+                                seed = seed,
+                                par = par)
 
+  #=====================5_plot_results========
+  plot_gea(stan_data = mig_data$stan_data,
+           migration_results = Migration,
+           beta_draw = GEA_res$beta_draw,
+           beta_summary = GEA_res$beta_summary,
+           rho_kappa_mu =  GEA_res$rho_kappa_mu,
+           env_names = colnames(env),
+           CI = plotting_CI)
+
+  #=====================6_estimate_neff========
+  neff <- estimate_neff(mig_data$stan_data)
+
+  return(list(GEA_results = GEA_res,
+              migration_results = Migration,
+              Neff_results = neff,
+              migration_plot = mig_plot,
+              stan_and_migration_data = mig_data))
 }
 
+#' Prepare migration data for stan.
+#'
+#' Consider running via \code{\link{likeGEA}} for the full pipeline. Generally
+#' for internal use.
+#'
+#' @export
 prepare_mig_data <- function(Phred, individuals, coordinates, env_data, migration_loci,
                             N_sim, seed = 42, verbose = TRUE) {
 
@@ -214,17 +272,24 @@ prepare_mig_data <- function(Phred, individuals, coordinates, env_data, migratio
 
   toc(quiet = FALSE, func.toc = toc_hours)
 
-  return(list(migration_data = migration_data))
+  return(list(migration_data = migration_data, stan_data = stan_data))
 }
 
+#' Estimate migration rates.
+#'
+#' Consider running via \code{\link{likeGEA}} for the full pipeline. Generally
+#' for internal use or when partial re-runs are needed.
+#'
 #' @param model character, default "migration_fast". Choice of model for
 #'   estimating migration. Options are "migration_fast" or "migration_M3b".
 #'   See details.
+#' @export
 estimate_migration <- function(data,
                                model = "migration_fast",
                                max_attempts = 10,
                                target_div_pct = 1.0,
                                target_rhat_pct = 1.0,
+                               chains = 4,
                                iter_sampling = 500,
                                iter_warmup = 250,
                                max_treedepth = 12,
@@ -276,7 +341,6 @@ estimate_migration <- function(data,
   ## ---- Sample ---------------------------------------------------------------
 
   n_cores           <- par
-  chains            <- 4
   threads_per_chain <- max(1L, floor(n_cores / chains))
 
   dat <- list(
@@ -376,11 +440,19 @@ estimate_migration <- function(data,
   return(Migration)
 }
 
+#' Run the core STAN model to estimate genotype-environment association with
+#' likelihoods.
+#'
+#' Consider running via \code{\link{likeGEA}} for the full pipeline. Generally
+#' for internal use or when partial re-runs are needed.
+#'
+#' @export
 run_stan_GEA_model <- function(stan_data,
-                               migration_data,
+                               migration_results,
                                k_sd = 4,
                                p0 = 20,
                                refresh = 100,
+                               chains = 2,
                                iter_warmup = 250,
                                iter_sampling = 500,
                                seed = 42,
@@ -400,7 +472,7 @@ run_stan_GEA_model <- function(stan_data,
   ## ---- Load data ------------------------------------------------------------
 
   data      <- stan_data; rm(stan_data)
-  Migration <- migration_data; rm(migration_data)
+  Migration <- migration_results; rm(migration_results)
 
   ## ---- Append hyperparameters -----------------------------------------------
 
@@ -444,7 +516,7 @@ run_stan_GEA_model <- function(stan_data,
   ## ---- Sample ---------------------------------------------------------------
 
   n_cores           <- par
-  threads_per_chain <- floor(chains/par)
+  threads_per_chain <- floor(par/chains)
   threads_per_chain <- max(c(threads_per_chain, 1))
 
 
@@ -504,9 +576,125 @@ run_stan_GEA_model <- function(stan_data,
   toc(quiet = FALSE, func.toc = toc_hours)
 
   return(list(rho_kappa_mu = rho_kappa_mu,
-              beta = beta_draw,
+              beta_draw = beta_draw,
               tau = tau_draw,
               beta_summary = beta_summary,
               mlog_p = mlog_p))
 
+}
+
+#' Estimate effective sample sizes.
+#'
+#' Consider running via \code{\link{likeGEA}} for the full pipeline. Generally
+#' for internal use or when partial re-runs are needed.
+#'
+#' @export
+estimate_neff <- function(stan_data){
+  tic("estimating Neff time")
+
+  ## ---- Load -----------------------------------------------------------------
+  N_patch      <- stan_data$N_patch
+  N_locus_tot  <- stan_data$N_locus
+  G_eff_ana    <- stan_data$G_call         # analytical
+  TwoN_eff_ana <- stan_data$TwoN           # analytical
+
+  ## Subsample loci for speed (gl_p_est sampling is the cost driver).
+  N_loci_use <- min(1000L, N_locus_tot)
+  if (N_loci_use < N_locus_tot) {
+    set.seed(789)
+    loci_used <- sort(sample(N_locus_tot, N_loci_use))
+    cat(sprintf("Subsampled %d of %d loci for N_eff estimation.\n",
+                N_loci_use, N_locus_tot))
+  } else {
+    loci_used <- seq_len(N_locus_tot)
+  }
+
+  dat <- list(
+    N_patch       = N_patch,
+    N_locus       = length(loci_used),
+    N_table       = as.integer(stan_data$N_table),
+    BetaBin_theta = stan_data$BetaBin_theta[loci_used, , drop = FALSE],
+    Group         = stan_data$Group        [loci_used, , drop = FALSE]
+  )
+
+  ## ---- Compile + sample gl_p_est.stan ---------------------------------------
+
+  STAN_MODEL <- .source_model("gl_p_est.stan")
+  if(!dir.exists("./stan")){dir.create("stan")}
+  if(!file.exists("stan/gl_p_est.stan")){
+    file.copy(STAN_MODEL, "./stan/gl_p_est.stan")
+  }
+
+  mod <- cmdstan_model(
+    "stan/gl_p_est.stan",
+    cpp_options   = list(stan_threads = TRUE),
+    stanc_options = list("O1")
+  )
+
+  n_cores           <- parallel::detectCores() - 2
+  chain             <- 2
+  threads_per_chain <- max(1L, floor(n_cores / chain))
+
+  # DEV NOTE: Is it worth it to allow all of these to change?
+  tic("NUTS posterior on p")
+  fit <- mod$sample(
+    data              = dat,
+    chains            = chain,
+    parallel_chains   = chain,
+    seed              = 546,
+    threads_per_chain = threads_per_chain,
+    refresh           = 100,
+    iter_warmup       = 200,
+    iter_sampling     = 500,
+    show_messages     = TRUE
+  )
+  toc(quiet = FALSE, func.toc = toc_hours)
+
+  ## ---- Extract per-(locus, patch) posterior moments -------------------------
+
+  p_summary <- summarise_draws_parallel(fit$draws("p", format = "draws_matrix"))
+  idx_mat   <- do.call(rbind, regmatches(
+    p_summary$variable,
+    regexec("p\\[([0-9]+),([0-9]+)\\]", p_summary$variable)))
+  i_idx     <- as.integer(idx_mat[, 2])
+  k_idx     <- as.integer(idx_mat[, 3])
+  stopifnot(length(i_idx) == length(loci_used) * N_patch,
+            all(!is.na(i_idx)), all(!is.na(k_idx)))
+
+  mu_post  <- matrix(NA_real_, length(loci_used), N_patch)
+  sd_post  <- matrix(NA_real_, length(loci_used), N_patch)
+  mu_post[cbind(i_idx, k_idx)] <- p_summary$mean
+  sd_post[cbind(i_idx, k_idx)] <- p_summary$sd
+  var_post <- sd_post^2
+
+  ## ---- Beta(G+1, 2N-G+1) moment-match  (same convention as analytical) ------
+
+  TwoN_eff_stan <- pmax(mu_post * (1 - mu_post) / pmax(var_post, 1e-20) - 3, 1e-6)
+  G_eff_stan    <- (2 + TwoN_eff_stan) * mu_post - 1
+  G_eff_stan    <- pmax(pmin(G_eff_stan, TwoN_eff_stan), 0)
+
+  ## ---- Save -----------------------------------------------------------------
+
+
+
+  ## Mean per-individual N_eff diagnostic (Stan estimate, like the original).
+  Neff_mean <- mean(rowSums(TwoN_eff_stan) / 2) / sum(stan_data$N_table)
+  cat(sprintf("Mean N_eff / N (Stan, across subsampled loci): %.4f\n", Neff_mean))
+
+  ret <- list(
+    loci_used     = loci_used,
+    G_eff_stan    = G_eff_stan,
+    TwoN_eff_stan = TwoN_eff_stan,
+    G_eff_ana     = G_eff_ana   [loci_used, , drop = FALSE],
+    TwoN_eff_ana  = TwoN_eff_ana[loci_used, , drop = FALSE],
+    Neff_mean     = Neff_mean
+  )
+
+  dir.create("files", showWarnings = FALSE, recursive = TRUE)
+  saveRDS(ret, "files/6_Neff.RDS")
+  cat("Saved: files/6_Neff.RDS\n")
+
+  toc(quiet = FALSE, func.toc = toc_hours)
+
+  return(ret)
 }

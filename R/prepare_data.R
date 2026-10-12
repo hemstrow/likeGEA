@@ -34,6 +34,8 @@
 #' @return A \eqn{p \times n} matrix, where p is the number of loci and n is
 #'   the number of individuals. See details for format.
 #'
+#' @export
+#'
 #' @author William Hemstrom
 #'
 #' pl <- function("path/to/example/data/once/Nikunj/adds/it.beagle.gz",
@@ -97,6 +99,8 @@ beagle2pl <- function(file, lines = NULL, ind_order = NULL, ind_names = NULL){
 #'   at once. Ignored on Linux.
 #'
 #' @return A vector of filenames for the chunks.
+#'
+#' @export
 #'
 #' @author William Hemstrom
 get_chunks <- function(beagle_file,
@@ -184,6 +188,9 @@ get_chunks <- function(beagle_file,
 }
 
 #' Format metadata for analysis.
+#'
+#' @export
+#'
 #' @author William Hemstrom
 prepare_metadata <- function(sample_meta,
                              env_mean_method = "unweighted"){
