@@ -121,8 +121,8 @@ plot_migration <- function(M, data, coordinates,
     ggplot2::theme(
       legend.position = "bottom",
       legend.box = "horizontal",
-      panel.grid.major = element_blank(),
-      panel.grid.minor = element_blank(),
+      panel.grid.major = ggplot2::element_blank(),
+      panel.grid.minor = ggplot2::element_blank(),
       panel.border = ggplot2::element_rect(color = "black", fill = NA, linewidth = 1)
     )
 

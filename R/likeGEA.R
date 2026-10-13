@@ -463,7 +463,7 @@ run_stan_GEA_model <- function(stan_data,
 
   ##   migration_fast.stan -- Petkova-centered combination (default)
   ##   migration_M3b.stan  -- joint (pi_off, pi_diag) fit with diagonal anchor
-  STAN_MODEL <- .source_model("stan/structured.stan")
+  STAN_MODEL <- .source_model("structured.stan")
   if(!dir.exists("./stan")){dir.create("stan")}
 
   if(!file.exists(file.path("stan", "structured.stan"))){
