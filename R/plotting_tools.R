@@ -201,7 +201,6 @@ plot_gea <- function(stan_data,
               nrow(inferred), CI))
 
   ## ---- Env color palette (Okabe-Ito CVD-safe) ------------------------------
-
   okabe_ito <- grDevices::palette.colors(palette = "Okabe-Ito")
   cvd_safe  <- unname(okabe_ito[!names(okabe_ito) %in% c("black", "gray")])
   if (data$N_env > length(cvd_safe))
@@ -315,7 +314,7 @@ plot_gea <- function(stan_data,
     }
   }
   "
-    expose_stan_functions(stanc(model_code = .calc_sel_code))
+    rstan::expose_stan_functions(rstan::stanc(model_code = .calc_sel_code))
 
     N_locus_all <- data$N_locus
     N_iter      <- nrow(beta_draw)

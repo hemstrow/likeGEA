@@ -87,7 +87,7 @@ likeGEA <- function(Phred, patch_info, patches_xy, env,
            beta_draw = GEA_res$beta_draw,
            beta_summary = GEA_res$beta_summary,
            rho_kappa_mu =  GEA_res$rho_kappa_mu,
-           env_names = colnames(env),
+           env_names = colnames(env)[-1],
            CI = plotting_CI)
 
   #=====================6_estimate_neff========
@@ -201,18 +201,18 @@ prepare_mig_data <- function(Phred, individuals, coordinates, env_data, migratio
 
 
   if(verbose){cat("=== Part A: (G_eff, 2*N_eff) for all loci (GEA scan set) ===\n")}
-  tic("G_eff / 2*N_eff (gl moment match)")
+  tictoc::tic("G_eff / 2*N_eff (gl moment match)")
   eff <- compute_N_eff_G_eff_gl(gl_all, N_table = N_table)
-  toc(quiet = FALSE, func.toc = toc_hours)
+  tictoc::toc(quiet = FALSE, func.toc = toc_hours)
 
   G_eff    <- eff$G_eff
   TwoN_eff <- eff$TwoN_eff
   G_eff[is.na(G_eff)] <- 0   # zero-coverage cells -> zero-evidence in structured.stan
 
   if(verbose){cat("Computing BetaBin_theta + Group (gl_p_est.stan input for 6_estimate_Neff) ...\n")}
-  tic("BetaBin_theta + Group")
+  tictoc::tic("BetaBin_theta + Group")
   bb <- compute_BetaBin_theta_gl(gl_all, N_table)
-  toc(quiet = FALSE, func.toc = toc_hours)
+  tictoc::toc(quiet = FALSE, func.toc = toc_hours)
 
   stan_data <- list(
     N_patch       = N_patch,
@@ -239,7 +239,7 @@ prepare_mig_data <- function(Phred, individuals, coordinates, env_data, migratio
   gl_migration <- gl_all[migration_idx, , , drop = FALSE]
   pi_off_sum   <- matrix(0, N_patch, N_patch)
   pi_diag_sum  <- numeric(N_patch)
-  tic("N_sim averaging")
+  tictoc::tic("N_sim averaging")
   for (s in seq_len(N_sim)) {
     geno_s      <- genotype_from_gl(gl_migration)
     pi_s        <- compute_pi_genotype(geno_s, N_table)
@@ -247,7 +247,7 @@ prepare_mig_data <- function(Phred, individuals, coordinates, env_data, migratio
     pi_diag_sum <- pi_diag_sum + pi_s$pi_diag
     if(verbose){if (s %% 10L == 0L) cat(sprintf("  %d / %d\n", s, N_sim))}
   }
-  toc(quiet = FALSE, func.toc = toc_hours)
+  tictoc::toc(quiet = FALSE, func.toc = toc_hours)
   pi_off  <- pi_off_sum  / N_sim
   pi_diag <- pi_diag_sum / N_sim
   if(verbose){cat(sprintf("  pi_diag range          : [%.4f, %.4f]\n",
@@ -271,7 +271,7 @@ prepare_mig_data <- function(Phred, individuals, coordinates, env_data, migratio
   saveRDS(migration_data, "files/1_migration_data.RDS")
   cat("Saved: files/1_migration_data.RDS\n\n")
 
-  toc(quiet = FALSE, func.toc = toc_hours)
+  tictoc::toc(quiet = FALSE, func.toc = toc_hours)
 
   return(list(migration_data = migration_data, stan_data = stan_data))
 }
@@ -296,7 +296,7 @@ estimate_migration <- function(data,
                                max_treedepth = 12,
                                refresh = 200,
                                par = parallel::detectCores() - 2){
-  tic("migration estimation")
+  tictoc::tic("migration estimation")
 
   ## ---- Stan model -- swap by uncommenting (both consume the same data) ----
   ##   migration_fast.stan -- Petkova-centered combination (default)
@@ -335,7 +335,7 @@ estimate_migration <- function(data,
   hpp <- "./stan/coalescent_time.hpp"
   hpp_file <- normalizePath(hpp)
 
-  mod <- cmdstan_model(
+  mod <- cmdstanr::cmdstan_model(
     STAN_MODEL,
     cpp_options   = list(USER_HEADER = hpp_file, stan_threads = TRUE),
     stanc_options = list("allow-undefined" = TRUE, "O1")
@@ -438,7 +438,7 @@ estimate_migration <- function(data,
               max(M_summary$rhat,     na.rm = TRUE),
               min(M_summary$ess_bulk, na.rm = TRUE)))
 
-  toc(quiet = FALSE, func.toc = toc_hours)
+  tictoc::toc(quiet = FALSE, func.toc = toc_hours)
 
   return(Migration)
 }
@@ -460,7 +460,7 @@ run_stan_GEA_model <- function(stan_data,
                                iter_sampling = 500,
                                seed = 42,
                                par = parallel::detectCores() - 2){
-  tic("estimating Stan time")
+  tictoc::tic("estimating Stan time")
 
   ##   migration_fast.stan -- Petkova-centered combination (default)
   ##   migration_M3b.stan  -- joint (pi_off, pi_diag) fit with diagonal anchor
@@ -508,12 +508,12 @@ run_stan_GEA_model <- function(stan_data,
   hpp <- nhpp
   hpp_file <- normalizePath(hpp)
 
-  mod <- cmdstan_model(
+  mod <- cmdstanr::cmdstan_model(
     STAN_MODEL,
     cpp_options     = list(USER_HEADER = hpp_file, stan_threads = TRUE),
     stanc_options   = list("allow-undefined" = TRUE),
     include_paths   = normalizePath("stan"),
-    force_recompile = TRUE
+    force_recompile = FALSE
   )
 
   ## ---- Sample ---------------------------------------------------------------
@@ -575,7 +575,7 @@ run_stan_GEA_model <- function(stan_data,
   cat("Saved files/4_{rho_kappa_mu_draw, beta_draw, tau_draw,",
       "beta_summary, mlog_p}.RDS\n")
 
-  toc(quiet = FALSE, func.toc = toc_hours)
+  tictoc::toc(quiet = FALSE, func.toc = toc_hours)
 
   return(list(rho_kappa_mu = rho_kappa_mu,
               beta_draw = beta_draw,
@@ -592,7 +592,7 @@ run_stan_GEA_model <- function(stan_data,
 #'
 #' @export
 estimate_neff <- function(stan_data){
-  tic("estimating Neff time")
+  tictoc::tic("estimating Neff time")
 
   ## ---- Load -----------------------------------------------------------------
   N_patch      <- stan_data$N_patch
@@ -627,7 +627,7 @@ estimate_neff <- function(stan_data){
     file.copy(STAN_MODEL, "./stan/gl_p_est.stan")
   }
 
-  mod <- cmdstan_model(
+  mod <- cmdstanr::cmdstan_model(
     "stan/gl_p_est.stan",
     cpp_options   = list(stan_threads = TRUE),
     stanc_options = list("O1")
@@ -638,7 +638,7 @@ estimate_neff <- function(stan_data){
   threads_per_chain <- max(1L, floor(n_cores / chain))
 
   # DEV NOTE: Is it worth it to allow all of these to change?
-  tic("NUTS posterior on p")
+  tictoc::tic("NUTS posterior on p")
   fit <- mod$sample(
     data              = dat,
     chains            = chain,
@@ -650,7 +650,7 @@ estimate_neff <- function(stan_data){
     iter_sampling     = 500,
     show_messages     = TRUE
   )
-  toc(quiet = FALSE, func.toc = toc_hours)
+  tictoc::toc(quiet = FALSE, func.toc = toc_hours)
 
   ## ---- Extract per-(locus, patch) posterior moments -------------------------
 
@@ -696,7 +696,7 @@ estimate_neff <- function(stan_data){
   saveRDS(ret, "files/6_Neff.RDS")
   cat("Saved: files/6_Neff.RDS\n")
 
-  toc(quiet = FALSE, func.toc = toc_hours)
+  tictoc::toc(quiet = FALSE, func.toc = toc_hours)
 
   return(ret)
 }

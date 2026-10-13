@@ -15,7 +15,6 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Imports:
     bread,
-    cmdstanr,
     cowplot,
     dplyr,
     geodist,
@@ -35,6 +34,7 @@ Suggests:
     gstat
 Additional_repositories: https://stan-dev.r-universe.dev/
 Depends:
+    cmdstanr,
     data.table,
     R (>= 3.6.0)
 LazyData: true
