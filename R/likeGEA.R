@@ -552,7 +552,6 @@ run_stan_GEA_model <- function(stan_data,
     iter_sampling     = iter_sampling
   )
 
-  browser()
   ## ---- Save posterior draws -------------------------------------------------
 
   dir.create("files", showWarnings = FALSE, recursive = TRUE)
