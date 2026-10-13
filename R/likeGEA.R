@@ -36,7 +36,8 @@ likeGEA <- function(Phred, patch_info, patches_xy, env,
                     refresh_gea = 200,
                     iter_warmup_gea = 250,
                     iter_sampling_gea = 500,
-                    plotting_CI = 0.95){
+                    plotting_CI = 0.95,
+                    par = parallel::detectCores() - 2){
 
   #=====================1_prepare_data==============
   mig_data <- prepare_mig_data(Phred = Phred,
@@ -58,7 +59,7 @@ likeGEA <- function(Phred, patch_info, patches_xy, env,
                                   iter_warmup = iter_warmup_mig,
                                   max_treedepth = max_treedepth_mig,
                                   refresh = refresh_mig,
-                                  par = parallel::detectCores() - 2)
+                                  par = par)
 
   #=====================3_plot_migration========
   mig_plot <- plot_migration(M = Migration,
@@ -516,9 +517,8 @@ run_stan_GEA_model <- function(stan_data,
   )
 
   ## ---- Sample ---------------------------------------------------------------
-
   n_cores           <- par
-  threads_per_chain <- floor(par/chains)
+  threads_per_chain <- floor(n_cores/chains)
   threads_per_chain <- max(c(threads_per_chain, 1))
 
 
@@ -552,6 +552,7 @@ run_stan_GEA_model <- function(stan_data,
     iter_sampling     = iter_sampling
   )
 
+  browser()
   ## ---- Save posterior draws -------------------------------------------------
 
   dir.create("files", showWarnings = FALSE, recursive = TRUE)
