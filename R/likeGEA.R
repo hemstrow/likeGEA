@@ -303,8 +303,10 @@ estimate_migration <- function(data,
   model <- paste0(model, ".stan")
   STAN_MODEL <- .source_model(model)
   if(!dir.exists("./stan")){dir.create("stan")}
-  file.copy(STAN_MODEL, "./stan")
-  STAN_MODEL <- file.path("stan", model)
+  if(!file.exists(paste0("stan/", model))){
+    file.copy(STAN_MODEL, paste0("./stan/", model))
+  }
+  STAN_MODEL <- paste0("./stan/", model)
   # STAN_MODEL <- "stan/migration_M3b.stan"
 
   ## ---- Load data ------------------------------------------------------------
@@ -325,11 +327,11 @@ estimate_migration <- function(data,
   ## ---- Compile Stan model ---------------------------------------------------
   hpp <- .source_model("coalescent_time.hpp")
   if(!file.exists(file.path("stan", "coalescent_time.hpp"))){
-    file.copy(hpp, "./stan")
+    file.copy(hpp, "./stan/coalescent_time.hpp")
   } else {
     cat("Using existing stan/coalescent_time.hpp\n")
   }
-  hpp <- file.path("stan", hpp)
+  hpp <- "./stan/coalescent_time.hpp"
   hpp_file <- normalizePath(hpp)
 
   mod <- cmdstan_model(
@@ -465,10 +467,10 @@ run_stan_GEA_model <- function(stan_data,
   if(!dir.exists("./stan")){dir.create("stan")}
 
   if(!file.exists(file.path("stan", "structured.stan"))){
-    file.copy(STAN_MODEL, "./stan")
+    file.copy(STAN_MODEL, "./stan/structured.stan")
   }
 
-  STAN_MODEL <- file.path("stan", model)
+  STAN_MODEL <- "stan/structured.stan"
   ## ---- Load data ------------------------------------------------------------
 
   data      <- stan_data; rm(stan_data)

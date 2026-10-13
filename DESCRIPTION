@@ -2,7 +2,7 @@ Package: likeGEA
 Title: Bayesian Genotype-Environment Association Analyses with Likelihoods.
 Version: 0.0.0.9000
 Authors@R: 
-    c(person("William", "Hemstrom", email = "hemstrow@gmail.com", role = c("aut", "cre"),
+    c(person("William", "Hemstrom", email = "hemstrow@gmail.com", role = c("aut", "cre")),
     person("Nikunj", "Goel", email = "nikunj410@gmail.com", role = c("aut", "ctb")),
     person("Prashant", "Ghimire", email = "pghimir1@kent.edu", role = c("aut", "ctb")))
 Description: A user-friendly interface for conducting Bayesian 
