@@ -20,6 +20,7 @@ Imports:
     geodist,
     ggplot2,
     glue,
+    gstat,
     LaplacesDemon,
     matrixStats,
     parallel,
@@ -31,7 +32,7 @@ Imports:
     stringi,
     tictoc
 Suggests:
-    gstat
+    reticulate
 Additional_repositories: https://stan-dev.r-universe.dev/
 Depends:
     cmdstanr,

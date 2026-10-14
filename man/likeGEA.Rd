@@ -31,7 +31,8 @@ likeGEA(
   refresh_gea = 200,
   iter_warmup_gea = 250,
   iter_sampling_gea = 500,
-  plotting_CI = 0.95
+  plotting_CI = 0.95,
+  par = parallel::detectCores() - 2
 )
 }
 \arguments{
