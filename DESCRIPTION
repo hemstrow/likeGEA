@@ -32,7 +32,8 @@ Imports:
     stringi,
     tictoc
 Suggests:
-    reticulate
+    reticulate,
+    xfun
 Additional_repositories: https://stan-dev.r-universe.dev/
 Depends:
     cmdstanr,

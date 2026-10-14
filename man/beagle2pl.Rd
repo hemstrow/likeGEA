@@ -50,6 +50,7 @@ as produced by something like \code{ANGSD}'s \code{doGlf}.
 \author{
 William Hemstrom
 
-pl <- function("path/to/example/data/once/Nikunj/adds/it.beagle.gz",
-lines = 1:2000) # first 2000 lines
+beagle <- system.file("extdata", "example.beagle.gz", package = "likeGEA")
+pl <- function(beagle,
+lines = 1:100) # first 100 lines
 }

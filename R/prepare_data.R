@@ -38,8 +38,9 @@
 #'
 #' @author William Hemstrom
 #'
-#' pl <- function("path/to/example/data/once/Nikunj/adds/it.beagle.gz",
-#'                lines = 1:2000) # first 2000 lines
+#' beagle <- system.file("extdata", "example.beagle.gz", package = "likeGEA")
+#' pl <- function(beagle,
+#'                lines = 1:100) # first 100 lines
 #'
 beagle2pl <- function(file, lines = NULL, ind_order = NULL, ind_names = NULL){
 
@@ -75,6 +76,7 @@ beagle2pl <- function(file, lines = NULL, ind_order = NULL, ind_names = NULL){
 
   dfinal[dfinal == "0,0,0"] <- "."
 
+  # reorganize if requested
   if(!is.null(ind_order)){
     dfinal <- dfinal[,ind_order]
   }
@@ -238,13 +240,14 @@ prepare_metadata <- function(sample_meta,
         set(envs, i = i, j = targets[[j]], value = idw_result)
       }
     }
+  } else {
+    stop("Unrecognized env_mean_method. Options: 'weighted', 'unweighted'.\n")
   }
 
   # return
-  browser()
   ret <- list(patch_info = patch_info[,.(patch, ind_id)],
               patches_xy = patch_xy,
-              env = env)
+              env = envs)
   return(lapply(ret, as.data.frame))
 }
 
