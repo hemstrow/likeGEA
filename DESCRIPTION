@@ -33,6 +33,7 @@ Imports:
     tictoc
 Suggests:
     reticulate,
+    testthat (>= 3.0.0),
     xfun
 Additional_repositories: https://stan-dev.r-universe.dev/
 Depends:
@@ -40,3 +41,4 @@ Depends:
     data.table,
     R (>= 3.6.0)
 LazyData: true
+Config/testthat/edition: 3

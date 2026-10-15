@@ -38,6 +38,9 @@
 #'
 #' @author William Hemstrom
 #'
+#' @examples
+#' # example code
+#'
 #' beagle <- system.file("extdata", "example.beagle.gz", package = "likeGEA")
 #' pl <- function(beagle,
 #'                lines = 1:100) # first 100 lines

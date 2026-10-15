@@ -47,10 +47,14 @@ Phred-likelihoods can be calculated according to:
 Where \eqn{P(\text{Data} \mid \text{Genotype})} is the a genotype likelihood
 as produced by something like \code{ANGSD}'s \code{doGlf}.
 }
-\author{
-William Hemstrom
+\examples{
+# example code
 
 beagle <- system.file("extdata", "example.beagle.gz", package = "likeGEA")
 pl <- function(beagle,
-lines = 1:100) # first 100 lines
+               lines = 1:100) # first 100 lines
+
+}
+\author{
+William Hemstrom
 }
