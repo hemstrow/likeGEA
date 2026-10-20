@@ -112,7 +112,6 @@ get_chunks <- function(beagle_file,
                        loci_per_chunk = 10000,
                        max_read = 50000){
 
-
   sys <- Sys.info()["sysname"]
 
   # get number of lines
@@ -144,20 +143,26 @@ get_chunks <- function(beagle_file,
   # Linux -- use cmd
   if(sys == "Linux"){
     if(tools::file_ext(beagle_file) == "gz"){
-      cmd <- shQuote(paste0("zcat ", beagle_file,
-                            " | tail -n +2 | split -n r/", nfiles,
-                            " -d --additional-suffix=.beagle.gz --filter='{ zcat ",
-                            beagle_file, " | head -n 1; cat; } | gzip > $FILE' - chunk_"))
+      cmd <- paste0(
+        "f=", shQuote(beagle_file), "; ",
+        "export HEADER=$(zcat \"$f\" 2>/dev/null | head -n 1); ",
+        "zcat \"$f\" | tail -n +2 | ",
+        "split -n r/", nfiles, " -d --additional-suffix=.beagle.gz ",
+        "--filter='{ printf \"%s\\n\" \"$HEADER\"; cat; } | gzip > $FILE' ",
+        "- chunk_"
+      )
     } else {
-      cmd <- shQuote(paste0("tail -n +2 ", beagle_file,
-                            " | split -n r/", nfiles,
-                            " -d --additional-suffix=.beagle --filter='{ head -n 1 ",
-                            beagle_file, " ; cat; } > $FILE' - chunk_"))
+      cmd <- paste0("tail -n +2 ", shQuote(beagle_file),
+                    " | split -n r/", nfiles,
+                    " -d --additional-suffix=.beagle --filter='{ head -n 1 ",
+                    shQuote(beagle_file), " ; cat; } > $FILE' - chunk_")
     }
 
     system(cmd)
 
-    outfiles <- list.files("", "chunk_[0-9]+\\.beag.+", full.names = TRUE)
+    outfiles <- paste0("chunk_", formatC(0:(nfiles - 1), width = nchar(as.character(nfiles)), format = "d", flag = "0"),
+                       ".beagle")
+    if(tools::file_ext(beagle_file) == "gz"){outfiles <- paste0(outfiles, ".gz")}
     return(outfiles)
   }
 
